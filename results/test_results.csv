@@ -1,0 +1,8 @@
+features,test_accuracy,test_macro_f1,f1_band0,f1_band1,f1_band2,f1_band3
+majority baseline,0.265,0.105,,,,
+title only,0.368,0.36,0.451,0.235,0.297,0.458
+n_references only,0.418,0.395,0.568,0.182,0.32,0.511
+venue only,0.431,0.403,0.567,0.22,0.32,0.504
+metadata only (no venue),0.443,0.422,0.577,0.217,0.347,0.549
+title + metadata,0.43,0.419,0.55,0.255,0.331,0.541
+everything (with venue),0.462,0.452,0.595,0.288,0.35,0.573
