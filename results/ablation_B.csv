@@ -1,0 +1,6 @@
+run,model,features,val_accuracy,val_macro_f1,f1_band0,f1_band1,f1_band2,f1_band3
+B1 title only,LogisticRegression,title,0.361,0.353,0.439,0.237,0.282,0.454
+B2 title + metadata (no venue),LogisticRegression,title+meta+refs,0.434,0.425,0.544,0.27,0.343,0.542
+B3 metadata only (no title/venue),LogisticRegression,meta+refs,0.446,0.427,0.572,0.236,0.356,0.543
+B4 topic only,LogisticRegression,topic,0.365,0.333,0.444,0.1,0.334,0.454
+B5 n_references only,LogisticRegression,refs,0.42,0.397,0.566,0.183,0.332,0.508

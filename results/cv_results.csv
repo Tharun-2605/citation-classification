@@ -1,0 +1,7 @@
+features,cv_macro_f1_mean,cv_macro_f1_std
+title only,0.365,0.004
+n_references only,0.405,0.002
+venue only,0.401,0.007
+metadata only (no venue),0.427,0.005
+title + metadata,0.427,0.005
+everything (with venue),0.456,0.005

@@ -1,0 +1,4 @@
+run,model,features,val_accuracy,val_macro_f1,f1_band0,f1_band1,f1_band2,f1_band3
+A1 without venue (title+metadata),LogisticRegression,title+meta+refs,0.434,0.425,0.544,0.27,0.343,0.542
+A2 with venue (everything),LogisticRegression,title+meta+refs+venue,0.458,0.45,0.574,0.287,0.359,0.578
+A3 venue only,LogisticRegression,venue,0.422,0.394,0.554,0.198,0.365,0.458

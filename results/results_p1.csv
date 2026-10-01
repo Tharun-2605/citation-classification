@@ -1,0 +1,4 @@
+run,model,features,val_accuracy,val_macro_f1,f1_band0,f1_band1,f1_band2,f1_band3
+LogisticRegression_title_tfidf,LogisticRegression,title tfidf (1-2 grams),0.361,0.353,0.439,0.237,0.282,0.454
+MultinomialNB_title_tfidf,MultinomialNB,title tfidf (1-2 grams),0.368,0.358,0.444,0.23,0.304,0.452
+LinearSVC_title_tfidf,LinearSVC,title tfidf (1-2 grams),0.357,0.349,0.436,0.239,0.271,0.449
