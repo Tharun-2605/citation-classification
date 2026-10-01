@@ -29,7 +29,7 @@ def get_logreg(**kw):
     """Strong, fast, interpretable baseline on sparse TF-IDF. Its coefficients
     are what the demo's attribution panel reads."""
     params = dict(max_iter=2000, class_weight="balanced",
-                  random_state=C.SEED, n_jobs=-1, C=1.0)
+                  random_state=C.SEED, C=1.0)
     params.update(kw)
     return LogisticRegression(**params)
 
