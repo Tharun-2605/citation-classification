@@ -1,0 +1,4 @@
+model,val_accuracy,val_macro_f1
+majority,0.265,0.105
+random,0.254,0.254
+stratified,0.251,0.25
