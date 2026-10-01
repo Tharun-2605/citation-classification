@@ -6,3 +6,4 @@ models/
 .env
 tasks.md
 plan.md
+*.~lock.*#

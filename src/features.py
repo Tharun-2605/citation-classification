@@ -55,6 +55,14 @@ class TextSelector(BaseEstimator, TransformerMixin):
             s = pd.Series(np.asarray(X).ravel())
         return s.fillna("").astype(str).values
 
+    def get_feature_names_out(self, input_features=None):
+        # Passes a single text column through to the TfidfVectorizer step
+        # that follows it in the pipeline. Without this, ColumnTransformer's
+        # get_feature_names_out() raises AttributeError on any feature set
+        # with use_title=True -- which is what features.feature_names() and
+        # the demo's attribution panel both call.
+        return np.asarray([self.column])
+
 
 class EmbeddingLookup(BaseEstimator, TransformerMixin):
     """Map each row's paper id to its precomputed sentence embedding.
