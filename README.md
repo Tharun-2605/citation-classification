@@ -36,11 +36,15 @@ files) is:
   year × CS subfield — see `notebooks/00_pull_and_experiments.ipynb.ipynb` for the
   exact OpenAlex API calls
 
-Download `citations_openalex.parquet` from the Kaggle dataset page and place it at
-`data/citations_openalex.parquet` (gitignored). If the download is rejected, the
-dataset's visibility needs to be confirmed with the repo owner — it should be public,
-but has been found private during development; this needs fixing before anyone
-outside the team (TAs, graders) can reproduce the pull.
+Download `citations_openalex.parquet` from the Kaggle dataset page, or with the
+Kaggle CLI:
+
+```bash
+kaggle datasets download -d tharunganesh172/citations-openalex-cs-2019-2023 \
+    -p data --unzip
+```
+
+and place it at `data/citations_openalex.parquet` (gitignored).
 
 `data/split.csv` (the frozen train/val/test split, **is** committed) doesn't need any
 extra step — it's already in the repo.
