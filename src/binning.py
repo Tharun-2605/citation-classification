@@ -6,12 +6,21 @@ power-law distributed with a large spike at zero, so a naive
 returns fewer classes than asked for. That failure is quiet, which makes it
 dangerous.
 
-Two strategies here:
+Three strategies here:
 
-`zero_plus_quantile` (default, recommended)
+`fixed` (default, agreed with Person 1 on the real data)
+    Fixed edges [0, 2, 7, inf] -> Uncited / Low / Medium / High, classes
+    0/1/2/3. Not fitted from the data at all, which is the point: both of us
+    get exactly the same bands on exactly the same rows (92.4% of rows
+    disagreed with `zero_plus_quantile`'s data-fitted edges, which made the
+    two codebases' numbers incomparable). Matches the `band` column already
+    in data/split.csv.
+
+`zero_plus_quantile`
     "Uncited" is its own class. The papers with at least one citation are then
-    split into equal-sized quantile bands. Defensible in one sentence to a
-    panel, and the class sizes are known and stable.
+    split into equal-sized quantile bands. Kept for synthetic-data dev work
+    and as a documented alternative, but NOT what gets used for the real
+    comparison table any more -- use `fixed` for that.
 
 `quantile`
     Plain quantile binning over the whole target. Provided for comparison and
@@ -75,8 +84,9 @@ def make_bands(
     ----------
     y : array-like of non-negative integers (`cites_2yr`)
     n_bands : total number of classes, including the uncited class when
-        `strategy="zero_plus_quantile"`. Must be >= 2.
-    strategy : "zero_plus_quantile" or "quantile"
+        `strategy="zero_plus_quantile"`. Must be >= 2. Ignored by
+        `strategy="fixed"`, which always produces its 4 fixed bands.
+    strategy : "fixed", "zero_plus_quantile", or "quantile"
 
     Returns
     -------
@@ -89,7 +99,9 @@ def make_bands(
     if (y < 0).any():
         raise ValueError("target contains negative values")
 
-    if strategy == "zero_plus_quantile":
+    if strategy == "fixed":
+        spec = _fixed(y)
+    elif strategy == "zero_plus_quantile":
         spec = _zero_plus_quantile(y, n_bands)
     elif strategy == "quantile":
         spec = _quantile(y, n_bands)
@@ -102,6 +114,16 @@ def make_bands(
         describe_bands(labels, spec)
 
     return labels, spec
+
+
+def _fixed(y: pd.Series) -> BandSpec:
+    """Fixed edges [0, 2, 7, inf], agreed with Person 1 so both pipelines'
+    numbers are directly comparable on the real data. Matches the `band`
+    column already frozen in data/split.csv: 0=Uncited, 1=Low, 2=Medium,
+    3=High. `y` is accepted (for a consistent call signature with the other
+    strategies) but not used to fit anything -- these edges don't move."""
+    return BandSpec("fixed", [0.0, 2.0, 7.0, float("inf")],
+                    ["Uncited", "Low", "Medium", "High"])
 
 
 def _zero_plus_quantile(y: pd.Series, n_bands: int) -> BandSpec:
@@ -173,8 +195,11 @@ if __name__ == "__main__":
 
     df = make_synthetic(2000)
 
-    print("=== zero_plus_quantile, 4 bands ===")
-    make_bands(df["cites_2yr"], n_bands=4)
+    print("=== fixed, the default used on the real data ===")
+    make_bands(df["cites_2yr"], strategy="fixed")
+
+    print("\n=== zero_plus_quantile, 4 bands ===")
+    make_bands(df["cites_2yr"], n_bands=4, strategy="zero_plus_quantile")
 
     print("\n=== plain quantile, 4 bands (shown so the failure is visible) ===")
     make_bands(df["cites_2yr"], n_bands=4, strategy="quantile")
