@@ -17,6 +17,7 @@ Train on df_train, never fit on df_test -- same rule as build_features().
 from __future__ import annotations
 
 import numpy as np
+import pandas as pd
 from scipy import sparse
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.pipeline import Pipeline
@@ -100,17 +101,34 @@ def build_pipeline(
 if __name__ == "__main__":
     import sys, os
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    from sklearn.model_selection import train_test_split
-
-    from make_synthetic import make_synthetic
-    from binning import make_bands
+    from binning import make_bands, BandSpec
     from metrics import evaluate
+    from data import load_dataset
 
-    df = make_synthetic(3000, seed=C.SEED)
-    y, spec = make_bands(df["cites_2yr"], n_bands=C.N_BANDS, verbose=False)
+    try:
+        # The real thing: the frozen split, joined by id. No ad-hoc split.
+        splits = load_dataset()
+        spec = BandSpec("fixed", [0.0, 2.0, 7.0, float("inf")],
+                        ["Uncited", "Low", "Medium", "High"])
+        train, test = splits["train"], splits["test"]
+        ytr = pd.Categorical(train["band"].map(dict(enumerate(spec.labels))),
+                             categories=spec.labels, ordered=True)
+        yte = pd.Categorical(test["band"].map(dict(enumerate(spec.labels))),
+                             categories=spec.labels, ordered=True)
+    except FileNotFoundError as e:
+        # Dev fallback only -- the parquet isn't downloaded locally. This is
+        # NOT the frozen split (synthetic rows have no entry in split.csv to
+        # join against), it's here purely so this file stays runnable for
+        # pipeline-mechanics smoke testing without the real data.
+        print(f"(no real data locally -- {e})")
+        print("falling back to synthetic data for a mechanics smoke test only\n")
+        from sklearn.model_selection import train_test_split
+        from make_synthetic import make_synthetic
 
-    train, test, ytr, yte = train_test_split(
-        df, y, test_size=C.TEST_SIZE, random_state=C.SEED, stratify=y)
+        df = make_synthetic(3000, seed=C.SEED)
+        y, spec = make_bands(df["cites_2yr"], strategy="fixed", verbose=False)
+        train, test, ytr, yte = train_test_split(
+            df, y, test_size=0.2, random_state=C.SEED, stratify=y)
 
     for feature_set, model_name in [
         ("A1_all", "logreg"),

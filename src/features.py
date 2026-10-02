@@ -32,7 +32,7 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 import config as C
 
-__all__ = ["build_features", "TextSelector", "EmbeddingLookup",
+__all__ = ["build_features", "TextSelector", "EmbeddingLookup", "Log1pColumns",
            "compute_embeddings", "load_embeddings", "feature_names"]
 
 class TextSelector(BaseEstimator, TransformerMixin):
@@ -62,6 +62,36 @@ class TextSelector(BaseEstimator, TransformerMixin):
         # with use_title=True -- which is what features.feature_names() and
         # the demo's attribution panel both call.
         return np.asarray([self.column])
+
+
+class Log1pColumns(BaseEstimator, TransformerMixin):
+    """log1p a subset of numeric columns, by position, before scaling.
+
+    `n_references` is heavy-tailed; log1p-ing it before StandardScaler
+    measurably helped the linear models on the real data (confirmed by
+    Person 1). Trees don't care either way. `year` is left alone -- it's
+    already a small, roughly-linear range.
+    """
+
+    def __init__(self, column_indices: tuple[int, ...] = ()):
+        self.column_indices = column_indices
+
+    def fit(self, X, y=None):
+        return self
+
+    def transform(self, X):
+        X = np.asarray(X, dtype=float).copy()
+        for i in self.column_indices:
+            X[:, i] = np.log1p(np.clip(X[:, i], a_min=0, a_max=None))
+        return X
+
+    def get_feature_names_out(self, input_features=None):
+        # Passes names through unchanged -- same column count and order
+        # in and out, just values transformed. Without this,
+        # ColumnTransformer.get_feature_names_out() raises AttributeError
+        # on any feature set with use_meta=True (see the same fix on
+        # TextSelector above, which hit the same sklearn requirement).
+        return np.asarray(input_features)
 
 
 class EmbeddingLookup(BaseEstimator, TransformerMixin):
@@ -157,10 +187,12 @@ def build_features(
             ]),
             C.CATEGORICAL_COLS,
         ))
+        log_cols = tuple(i for i, c in enumerate(C.NUMERIC_COLS) if c == "n_references")
         blocks.append((
             "numeric",
             Pipeline([
                 ("impute", SimpleImputer(strategy="median")),
+                ("log1p", Log1pColumns(log_cols)),
                 ("scale", StandardScaler()),
             ]),
             C.NUMERIC_COLS,

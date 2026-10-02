@@ -10,7 +10,9 @@ Otherwise the numbers in the report are not comparable.
 Usage
 -----
     from metrics import evaluate, log_result, results_table
-    res = evaluate(y_test, y_pred, y_train=y_train, model_name="LogReg + TFIDF")
+    res = evaluate(y_test, y_pred, labels=spec.labels, y_train=y_train,
+                   model_name="LogReg + TFIDF", feature_set="A2_no_venue",
+                   eval_split="test")
     log_result(res, notes="title only, no venue")
 """
 
@@ -35,9 +37,11 @@ RESULTS_PATH = str(C.RESULTS_CSV)
 def evaluate(
     y_true,
     y_pred,
+    labels: list,
     y_train=None,
     model_name: str = "unnamed",
-    labels: list | None = None,
+    feature_set: str | None = None,
+    eval_split: str | None = None,
     verbose: bool = True,
 ) -> dict:
     """Score a model and print it against its baselines.
@@ -45,27 +49,31 @@ def evaluate(
     Parameters
     ----------
     y_true, y_pred : the test labels and the model's predictions
+    labels : class order, REQUIRED. Without an explicit order, classes fall
+        back to alphabetical and the confusion matrix / per-class columns
+        silently come out in a different order between the two of us --
+        pass spec.labels every time.
     y_train : training labels. Used to compute the majority baseline the way it
         would actually be applied — predicting the *training* majority class on
         the test set. Falls back to y_true if not given, which slightly
         flatters the baseline; pass y_train.
     model_name : goes into the results log
-    labels : class order for the confusion matrix
+    feature_set : which config.FEATURE_SETS key this run used (e.g.
+        "A2_no_venue"). Logged as its own column so the ablation table can
+        be assembled straight from results.csv.
+    eval_split : "cv" or "test" -- which split this score came from. Logged
+        as its own column so CV and final test numbers don't get mixed in
+        the same comparison by accident.
 
     Returns
     -------
     dict of metrics, ready for `log_result`
     """
+    if not labels:
+        raise ValueError("labels is required -- pass spec.labels, not None")
+
     y_true = pd.Series(np.asarray(y_true))
     y_pred = np.asarray(y_pred)
-
-    if labels is None:
-        labels = list(pd.unique(pd.concat(
-            [y_true, pd.Series(y_pred)]).dropna()))
-        try:
-            labels = sorted(labels)
-        except TypeError:
-            pass
 
     acc = accuracy_score(y_true, y_pred)
     macro = f1_score(y_true, y_pred, average="macro", zero_division=0)
@@ -83,8 +91,15 @@ def evaluate(
     n_classes = len(labels)
     random_acc = 1.0 / n_classes if n_classes else float("nan")
 
+    # Per-class F1, computed unconditionally (not just under verbose) since
+    # the ablation table needs f1_<label> columns in every logged row.
+    rep = classification_report(y_true, y_pred, labels=labels,
+                                zero_division=0, output_dict=True)
+
     result = {
         "model": model_name,
+        "feature_set": feature_set,
+        "eval_split": eval_split,
         "accuracy": round(float(acc), 4),
         "macro_f1": round(float(macro), 4),
         "weighted_f1": round(float(weighted), 4),
@@ -97,6 +112,9 @@ def evaluate(
         "n_test": int(len(y_true)),
         "n_classes": int(n_classes),
     }
+    for lab in labels:
+        r = rep.get(str(lab), rep.get(lab))
+        result[f"f1_{lab}"] = round(float(r["f1-score"]), 4) if r else None
 
     if verbose:
         print(f"\n{'=' * 62}")
@@ -117,8 +135,6 @@ def evaluate(
         print(f"\n  >> {verdict}")
 
         print("\n  per class:")
-        rep = classification_report(y_true, y_pred, labels=labels,
-                                    zero_division=0, output_dict=True)
         for lab in labels:
             r = rep.get(str(lab), rep.get(lab))
             if r:
@@ -202,8 +218,10 @@ def results_table(path: str | None = None,
     if not os.path.exists(path):
         raise FileNotFoundError(f"no results at {path} — nothing logged yet")
     df = pd.read_csv(path)
-    cols = ["model", "accuracy", "baseline_accuracy", "accuracy_lift",
-            "macro_f1", "baseline_macro_f1", "macro_f1_lift", "notes"]
+    cols = ["model", "feature_set", "eval_split",
+            "accuracy", "baseline_accuracy", "accuracy_lift",
+            "macro_f1", "baseline_macro_f1", "macro_f1_lift",
+            "f1_Uncited", "f1_Low", "f1_Medium", "f1_High", "notes"]
     cols = [c for c in cols if c in df.columns]
     return df[cols].sort_values(sort_by, ascending=False).reset_index(drop=True)
 
