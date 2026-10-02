@@ -5,7 +5,8 @@ pyarrow>=14.0
 matplotlib>=3.7
 pytest>=7.0
 
+gradio>=4.0
+
 # Day 2+
 # sentence-transformers>=2.2
 # lightgbm>=4.0
-# gradio>=4.0
