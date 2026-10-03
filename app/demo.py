@@ -59,17 +59,30 @@ if _MODEL is not None:
     _TFIDF_STEP = _PIPE.named_steps["features"]
 
 
-def _top_words(title: str, predicted_idx: int, top_n: int = 8):
+def predict_proba_by_name(title: str) -> dict:
+    """Probability per band NAME. Maps through the fitted model's own
+    classes_, so it stays correct whatever order the classes were stored in."""
+    row = pd.DataFrame({"title": [title]})
+    proba = _PIPE.predict_proba(row)[0]
+    return {str(c): float(p) for c, p in zip(_CLF.classes_, proba)}
+
+
+def _clean_name(raw: str) -> str:
+    """'title_word__survey of' -> 'survey of'; char n-grams keep their text."""
+    return raw.split("__", 1)[-1]
+
+
+def _top_words(title: str, predicted_class: str, top_n: int = 8):
     """Which words in this title pushed the prediction toward the predicted
-    band, and which pushed away from it. coef_[predicted_idx] is the
-    predicted class's weight on each TF-IDF feature; multiplying by this
-    title's own TF-IDF value gives each word's actual contribution here,
-    not just its weight in the abstract."""
+    band, and which pushed away from it. The coefficient row is looked up by
+    class NAME via clf.classes_ -- never by position, because classes_ is
+    alphabetical (High, Low, Medium, Uncited), not the order of the bands."""
     row = pd.DataFrame({"title": [title]})
     x = _TFIDF_STEP.transform(row)
     x = x.toarray().ravel() if hasattr(x, "toarray") else np.asarray(x).ravel()
 
-    coef = _CLF.coef_[predicted_idx]
+    class_idx = list(_CLF.classes_).index(predicted_class)
+    coef = _CLF.coef_[class_idx]
     contribution = x * coef
     nonzero = np.nonzero(x)[0]
     if len(nonzero) == 0:
@@ -79,7 +92,7 @@ def _top_words(title: str, predicted_idx: int, top_n: int = 8):
     lines = []
     for i in order[:top_n]:
         sign = "+" if contribution[i] > 0 else "-"
-        lines.append(f"{sign} `{_NAMES[i]}`  ({contribution[i]:+.3f})")
+        lines.append(f"{sign} `{_clean_name(_NAMES[i])}`  ({contribution[i]:+.3f})")
     return "\n\n".join(lines)
 
 
@@ -92,18 +105,17 @@ def predict(title: str):
     if not title or not title.strip():
         raise gr.Error("Type a paper title first.")
 
-    row = pd.DataFrame({"title": [title]})
-    proba = _PIPE.predict_proba(row)[0]
-    pred_idx = int(np.argmax(proba))
-    pred_label = _SPEC.labels[pred_idx]
+    proba_by_name = predict_proba_by_name(title)
+    pred_label = max(proba_by_name, key=proba_by_name.get)
 
-    confidences = {label: float(p) for label, p in zip(_SPEC.labels, proba)}
-    attribution = _top_words(title, pred_idx)
+    # Display in band order (Uncited -> High), keyed by name.
+    confidences = {label: proba_by_name[label] for label in _SPEC.labels}
+    attribution = _top_words(title, pred_label)
 
     blurb = (f"**{pred_label}** -- {BAND_BLURB[pred_label]}\n\n"
-            "Title-only model (~0.36 macro-F1 on held-out test). The "
-            "project's strongest result (~0.45) needs venue and metadata "
-            "this demo doesn't have.")
+             "Title-only model (about 0.36 macro-F1 on held-out test). The "
+             "project's strongest result (about 0.45) needs venue and metadata "
+             "this demo doesn't have.")
 
     return confidences, blurb, attribution
 

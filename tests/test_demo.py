@@ -12,6 +12,7 @@ import os
 import sys
 
 import gradio as gr
+import pandas as pd
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "app"))
@@ -77,7 +78,7 @@ def test_predict_raises_clear_error_when_model_missing(monkeypatch):
 def test_top_words_handles_title_with_no_recognised_words():
     # A title made entirely of characters unlikely to appear in the tiny
     # synthetic vocabulary's n-grams.
-    out = demo_app._top_words("qqqqq", predicted_idx=0, top_n=5)
+    out = demo_app._top_words("qqqqq", predicted_class="Uncited", top_n=5)
     assert isinstance(out, str)
     assert len(out) > 0  # either real attribution or the fallback message
 
@@ -85,7 +86,35 @@ def test_top_words_handles_title_with_no_recognised_words():
 def test_top_words_returns_requested_count_at_most():
     out = demo_app._top_words(
         "Deep learning approach to neural network optimization for graphs",
-        predicted_idx=0, top_n=3)
+        predicted_class="Uncited", top_n=3)
     # Each shown word is one "+/-" bulleted line separated by blank lines.
     lines = [l for l in out.split("\n\n") if l.strip()]
     assert len(lines) <= 3
+
+
+def test_demo_probabilities_are_attached_to_the_right_band_names():
+    """Regression test for swapped Uncited/High labels. sklearn stores
+    classes_ alphabetically (High, Low, Medium, Uncited), so mapping
+    probabilities by position against the band order swaps them. Papers
+    really in Uncited must get more Uncited probability than papers really
+    in High, and the reverse must hold for High."""
+    df = make_synthetic(600, seed=1)
+    y, _ = make_bands(df["cites_2yr"], strategy="fixed", verbose=False)
+    y = pd.Series(y.astype(str), index=df.index)
+
+    uncited = df[y == "Uncited"].head(20)
+    high = df[y == "High"].head(20)
+    assert len(uncited) == 20 and len(high) == 20
+
+    def mean_proba(frame, band):
+        return sum(demo_app.predict_proba_by_name(t)[band]
+                   for t in frame["title"].fillna("untitled")) / len(frame)
+
+    assert mean_proba(uncited, "Uncited") > mean_proba(high, "Uncited")
+    assert mean_proba(high, "High") > mean_proba(uncited, "High")
+
+
+def test_headline_prediction_matches_highest_named_probability():
+    confidences, blurb, _ = demo_app.predict("Deep learning survey of graph networks")
+    top = max(confidences, key=confidences.get)
+    assert blurb.startswith(f"**{top}**")
