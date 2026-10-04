@@ -3,6 +3,7 @@
 UE24CS352A Machine Learning mini-project, Problem Statement 66, "Paper Citation Classification".
 
 **Team:** Tharun Ganesh S (PES2UG24AM172), Vansh Sharma (PES2UG24AM179)
+
 **Write-up:** [`report/writeup.pdf`](report/writeup.pdf)
 
 We classify a computer-science paper into a **citation-impact band** (Uncited / Low /
@@ -19,8 +20,9 @@ macro-F1). See [Results](#results) below.
 
 ## Setup
 
-Python 3.10 or newer. The project was tested with Python 3.14 on Windows and with the
-Python that Kaggle provides.
+Python 3.10 or newer should work. We ran the Windows steps below end to end on Python 3.14
+(starting from a downloaded ZIP of the repository) and ran the experiment notebooks on Kaggle.
+The Linux / macOS commands are the standard equivalents and were not run by us.
 
 ```bash
 git clone https://github.com/Tharun-2605/citation-classification.git
@@ -56,7 +58,8 @@ Kaggle Dataset, and you download it once into `data/`:
   for the exact API calls.
 
 Download the file from the Kaggle dataset page (the **Download** button gives a zip; unzip
-it), or use the Kaggle CLI:
+it). This is the route we used. The Kaggle CLI also works if you have Kaggle credentials set
+up, but we did not test it:
 
 ```bash
 kaggle datasets download -d tharunganesh172/citations-openalex-cs-2019-2023 -p data --unzip
