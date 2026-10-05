@@ -1,0 +1,2 @@
+model,feature_set,eval_split,accuracy,macro_f1,weighted_f1,balanced_accuracy,baseline_accuracy,baseline_macro_f1,accuracy_lift,macro_f1_lift,random_accuracy,n_test,n_classes,f1_Uncited,f1_Low,f1_Medium,f1_High,notes,timestamp
+logreg / B4_title_venue (venue demo model),B4_title_venue,test,0.4382,0.4301,0.4313,0.4362,0.2652,0.1048,0.173,0.3253,0.25,6600,4,0.5553,0.2926,0.3361,0.5364,"venue-aware demo model, trained on train+val, scored on test",2026-10-05T14:19:03
