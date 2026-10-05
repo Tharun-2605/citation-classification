@@ -54,7 +54,7 @@ Kaggle Dataset, and you download it once into `data/`:
   (https://www.kaggle.com/datasets/tharunganesh172/citations-openalex-cs-2019-2023)
 - File: `citations_openalex.parquet` (about 3 MB)
 - Pulled from the OpenAlex API with a fixed seed (`SEED = 42` in `src/config.py`),
-  stratified by year x CS subfield. See `notebooks/00_pull_and_experiments.ipynb.ipynb`
+  stratified by year x CS subfield. See `notebooks/00_pull_and_experiments.ipynb`
   for the exact API calls.
 
 Download the file from the Kaggle dataset page (the **Download** button gives a zip; unzip
@@ -81,18 +81,23 @@ python src/day1_smoke.py
 # Confirm the real pull and the frozen split load and join correctly
 python src/data.py
 
-# Train and save the model the demo app loads (needs the real parquet; takes a few minutes)
+# Train and save the title-only model for the demo (needs the real parquet; a few minutes)
 python src/train_demo_model.py
 
+# Train and save the title + venue model for the demo's second panel (same requirement)
+python src/train_venue_demo_model.py
+
 # Launch the demo, then open http://127.0.0.1:7860 in a browser.
-# Type a title, get a predicted band + confidence + the words behind the prediction.
+# Type a title and pick a venue. The left panel uses the title alone, the right panel
+# uses the title and venue, and each shows the predicted band, confidence and reasons.
 python app/demo.py
 ```
 
-The commands above work on Windows as written (Python accepts forward slashes). Run
-`python src/train_demo_model.py` before the first launch of the demo.
+The commands above work on Windows as written (Python accepts forward slashes). Run both
+`src/train_*_demo_model.py` scripts before the first launch of the demo. Without the venue
+model, the right panel shows a message and the left panel still works.
 
-`notebooks/00_pull_and_experiments.ipynb.ipynb` (the OpenAlex pull, EDA, baselines, first
+`notebooks/00_pull_and_experiments.ipynb` (the OpenAlex pull, EDA, baselines, first
 ablations) and `notebooks/01-train-harness.ipynb` (the shared 5-fold CV and final test
 harness) are meant to be run on Kaggle, with the dataset above attached. Only the pull
 notebook needs internet access.
@@ -108,7 +113,7 @@ citation-classification/
 ├── report/
 │   └── writeup.pdf                        two-page write-up
 ├── notebooks/
-│   ├── 00_pull_and_experiments.ipynb.ipynb  OpenAlex pull, EDA, baselines, first ablations
+│   ├── 00_pull_and_experiments.ipynb  OpenAlex pull, EDA, baselines, first ablations
 │   ├── 01-train-harness.ipynb             shared 5-fold CV + final test harness
 │   └── 02_models.ipynb                    RandomForest / HistGradientBoosting vs LogReg (validation split)
 ├── src/
@@ -122,6 +127,7 @@ citation-classification/
 │   ├── baselines.py                       majority / stratified / uniform dummy baselines
 │   ├── metrics.py                         evaluate() against baselines, log_result() to results.csv
 │   ├── train_demo_model.py                trains + saves the title-only model the demo loads
+│   ├── train_venue_demo_model.py          trains + saves the title + venue model for the demo
 │   └── day1_smoke.py                      end-to-end smoke test on synthetic data
 ├── app/
 │   └── demo.py                            Gradio demo: title -> predicted band + confidence + attribution
@@ -129,6 +135,7 @@ citation-classification/
 ├── results/
 │   ├── results.csv                        shared run log (model, feature_set, eval_split, metrics, per-class F1)
 │   ├── results_rf_hgb.csv                 RandomForest / HistGradientBoosting runs (validation split)
+│   ├── results_title_venue.csv            title + venue demo model (test split)
 │   ├── baselines.csv, ablation_A.csv, ablation_B.csv, cv_results.csv, test_results.csv
 │   └── figures/                           target_checks.png, confusion_matrices*.png
 └── data/                                  citations_openalex.parquet (gitignored), split.csv (committed)
@@ -168,9 +175,10 @@ What the ablation shows:
 Per-class F1, the full run log and the confusion matrices are in `results/results.csv` and
 `results/figures/`.
 
-The demo app necessarily uses the **title-only** model (about 0.36 macro-F1 on test). A typed
-title is the only input it ever has, so it cannot use venue or metadata even though those
-carry more signal. The app says this on screen.
+The demo has two panels. The **title-only** panel (about 0.36 macro-F1 on test) sees only the
+typed title. The **title + venue** panel (0.430 macro-F1 on test, `results/results_title_venue.csv`)
+also takes a venue from a dropdown of the ten most frequent training venues, or "Unknown
+venue". Metadata (subfield, topic, year, reference count) is not in the demo.
 
 ## References
 

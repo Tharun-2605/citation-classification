@@ -118,3 +118,84 @@ def test_headline_prediction_matches_highest_named_probability():
     confidences, blurb, _ = demo_app.predict("Deep learning survey of graph networks")
     top = max(confidences, key=confidences.get)
     assert blurb.startswith(f"**{top}**")
+
+
+# --- title + venue panel -------------------------------------------------
+
+@pytest.fixture
+def tiny_venue_model(monkeypatch):
+    """Venue-aware model on synthetic data, same B4_title_venue feature set
+    the real one uses, so the venue panel is exercised without the real parquet."""
+    from pipeline import build_pipeline
+
+    df = make_synthetic(600, seed=1)
+    y, spec = make_bands(df["cites_2yr"], strategy="fixed", verbose=False)
+    pipe = build_pipeline(feature_set="B4_title_venue", model_name="logreg",
+                          model_kwargs={"class_weight": None})
+    pipe.fit(df, y)
+    venues = [v for v in df["venue"].dropna().unique()[:3]]
+
+    monkeypatch.setattr(demo_app, "_VENUE_MODEL", (pipe, spec, venues))
+    monkeypatch.setattr(demo_app, "_VPIPE", pipe)
+    monkeypatch.setattr(demo_app, "_VSPEC", spec)
+    monkeypatch.setattr(demo_app, "_VENUES", venues)
+    yield venues
+
+
+def test_venue_panel_probabilities_sum_to_one(tiny_venue_model):
+    confidences, blurb = demo_app.predict_venue("Deep learning survey", tiny_venue_model[0])
+    assert set(confidences) == {"Uncited", "Low", "Medium", "High"}
+    assert sum(confidences.values()) == pytest.approx(1.0, abs=1e-6)
+
+
+def test_venue_panel_headline_matches_highest_named_probability(tiny_venue_model):
+    confidences, blurb = demo_app.predict_venue("Deep learning survey", tiny_venue_model[0])
+    top = max(confidences, key=confidences.get)
+    assert blurb.startswith(f"**{top}**")
+
+
+def test_venue_panel_accepts_unknown_venue(tiny_venue_model):
+    confidences, _ = demo_app.predict_venue("Some title", demo_app.UNKNOWN_VENUE)
+    assert sum(confidences.values()) == pytest.approx(1.0, abs=1e-6)
+
+
+def test_venue_panel_probabilities_attached_to_the_right_band_names(tiny_venue_model):
+    """Same regression as the title-only panel, for the venue model."""
+    df = make_synthetic(600, seed=1)
+    y, _ = make_bands(df["cites_2yr"], strategy="fixed", verbose=False)
+    y = pd.Series(y.astype(str), index=df.index)
+    uncited = df[y == "Uncited"].head(20)
+    high = df[y == "High"].head(20)
+
+    def mean_proba(frame, band):
+        return sum(demo_app.predict_venue_proba_by_name(t, v)[band]
+                   for t, v in zip(frame["title"].fillna("untitled"),
+                                   frame["venue"].fillna(demo_app.UNKNOWN_VENUE))) / len(frame)
+
+    assert mean_proba(uncited, "Uncited") > mean_proba(high, "Uncited")
+    assert mean_proba(high, "High") > mean_proba(uncited, "High")
+
+
+def test_venue_panel_raises_clear_error_when_model_missing(monkeypatch):
+    monkeypatch.setattr(demo_app, "_VENUE_MODEL", None)
+    with pytest.raises(gr.Error, match="train_venue_demo_model.py"):
+        demo_app.predict_venue("some title", "IEEE Access")
+
+
+def test_predict_both_returns_both_panels(tiny_venue_model):
+    label, blurb, attr, v_label, v_blurb = demo_app.predict_both(
+        "Deep learning survey", tiny_venue_model[0])
+    assert label and blurb and v_label and v_blurb
+
+
+def test_predict_both_keeps_title_panel_when_venue_model_missing(monkeypatch):
+    monkeypatch.setattr(demo_app, "_VENUE_MODEL", None)
+    label, blurb, attr, v_label, v_blurb = demo_app.predict_both("Deep learning survey", None)
+    assert label is not None          # title-only panel still works
+    assert v_label is None and "train_venue_demo_model.py" in v_blurb
+
+
+def test_top_venues_uses_training_split_only_and_skips_nulls():
+    import train_venue_demo_model as tv
+    train = pd.DataFrame({"venue": ["A", "A", "A", "B", "B", None, "C"]})
+    assert tv.top_venues(train, n=2) == ["A", "B"]

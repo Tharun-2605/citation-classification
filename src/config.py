@@ -78,6 +78,8 @@ FEATURE_SETS = {
     "B1_title_only":     dict(use_title=True,  use_meta=False, use_venue=False),
     "B2_title_plus_meta": dict(use_title=True, use_meta=True,  use_venue=False),
     "B3_meta_only":      dict(use_title=False, use_meta=True,  use_venue=False),
+    # Added for the venue-aware demo. Title + venue, no metadata.
+    "B4_title_venue":    dict(use_title=True,  use_meta=False, use_venue=True),
 }
 
 
