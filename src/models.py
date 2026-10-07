@@ -92,7 +92,7 @@ def get_mlp(**kw):
     problem and costs an afternoon. No class_weight support in sklearn's MLP,
     so read its macro F1 with that in mind."""
     params = dict(hidden_layer_sizes=(128, 64), max_iter=60,
-                  early_stopping=True, n_iter_no_change=5,
+                  early_stopping=False, n_iter_no_change=5,
                   random_state=C.SEED)
     params.update(kw)
     return MLPClassifier(**params)
